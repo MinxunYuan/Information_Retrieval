@@ -20,6 +20,10 @@ struct FileListNode* createFileListNode(char* fileName, double tf);
 
 FileList insertFileNode(FileList flst, char* fileName, double tf);
 InvertedIndexBST invertedIndexInsert(InvertedIndexBST root, char* word, char* fileName, double tf);
+
+void printInvertedIndex(InvertedIndexBST tree); 
+void printFileList(FileList head);
+
 typedef struct wf {
     char* word;
     int freq;
@@ -28,17 +32,10 @@ typedef struct wf {
 
 
 int main() {
-    // 为啥char *s = "  123  "这样就不行啊
-    // char s[MAX_WD_SIZE];
-
-    // sprintf(s, "%s", "abc.net.au.");
-
-    // s = normaliseWord(s);
-    // printf("%s\n", normaliseWord(s));
 
     InvertedIndexBST inverted_index = generateInvertedIndex(COLLECTION_FILE_NAME);
     // printf("\n");
-    // printf("%s %s\n", inverted_index->right->word, inverted_index->right->fileList->filename);
+    printInvertedIndex(inverted_index);
 
     return 0;
 }
@@ -86,7 +83,7 @@ InvertedIndexBST generateInvertedIndex(char* collectionFilename) {
         // set up variables for iterating over tokens ' ' and '\n'
         char *wd, *input;
 
-        wf wfs[100]; // TODO:
+        wf wfs[100]; // TODO: dynamically
         memset(wfs, 0, sizeof(wfs));
 
         while (fgets(line, MAX_LINE_SIZE, each_file) != NULL) {
@@ -97,6 +94,7 @@ InvertedIndexBST generateInvertedIndex(char* collectionFilename) {
                     wd_cnt++;
                     // normalise word before add
                     wd = normaliseWord(wd);
+                    // 它每一个InvertedIndexNode的FileList要升序输出
                     // 先去wfs里遍历一下康康有没有之前见过的
                     int wf_num;
                     for (wf_num = 0; wf_num < wf_cnt; wf_num++) {
@@ -153,35 +151,31 @@ char* normaliseWord(char* str) {
     return i;
 }
 
-// InvertedIndexBST findInvertedIndexNodeByWord(InvertedIndexBST root, char* word) {
-//     if (!root) return NULL;
-//     printf("findInvertedIndexNodeByWord");
-//     if (root->left && strcmp(word, root->word) > 0)
-//         return findInvertedIndexNodeByWord(root->right, word);
-//     else if (root->right && strcmp(word, root->word) < 0)
-//         return findInvertedIndexNodeByWord(root->left, word);
-//     else
-//         return root;
-// }
+/**
+ * Outputs  the  given inverted index to a file named invertedIndex.txt.
+ * The output should contain one line per word, with the  words  ordered
+ * alphabetically  in ascending order. Each list of filenames for a word
+ * should be ordered alphabetically in ascending order.
+ */
+void printInvertedIndex(InvertedIndexBST tree) {
+    if (!tree) return;
+    printInvertedIndex(tree->left);
+    printf("%s ", tree->word);
+    printFileList(tree->fileList);
+    puts("");
+    printInvertedIndex(tree->right);
+}
+
+
+void printFileList(FileList head) {
+    if (!head) return;
+    printf("%s (%f) ", head->filename, head->tf);
+    printFileList(head->next);
+}
 
 InvertedIndexBST invertedIndexInsert(InvertedIndexBST root, char* word, char* fileName, double tf) {
-    // 如果不空，先去找找有没有word所在的InvertedIndexNode
-    // InvertedIndexBST node = findInvertedIndexNodeByWord(root, word);
-    InvertedIndexBST node = root;
-    // if (node) {
-    //     // 有的话，就只需要改其fileList
-    //     // fileList没dummyhead，涉及到改指针值，要么返回地址，要么传指针的地址进去
-    //     root->fileList = insertFileNode(root->fileList, fileName, tf);
-    //     return root;
-    // }
-    // printf("get");
-
-    // create a new InvertedIndexNode
-    // 找一个叶子
-    if (!root) {
-        // printf("get1");
+    if (!root) 
         return createInvertedIndexNode(word, fileName, tf);
-    }
     // printf("find word\n");
     if (strcmp(word, root->word) < 0)
         root->left = invertedIndexInsert(root->left, word, fileName, tf);
@@ -201,11 +195,6 @@ struct InvertedIndexNode* createInvertedIndexNode(char* wd, char* fileName, doub
     // printf("createInvertedIndexNode\n");
     struct InvertedIndexNode* node = (struct InvertedIndexNode*)malloc(sizeof(struct InvertedIndexNode));
 
-    // node->word = strdup(wd);
-    // node->left = NULL;
-    // node->right = NULL;
-    // node->fileList = NULL;
-    // node->fileList = insertFileNode(node->fileList, fileName, tf);
     (*node) = (struct InvertedIndexNode){
         .word = strdup(wd),
         .fileList = insertFileNode(node->fileList, fileName, tf),
@@ -230,9 +219,6 @@ struct FileListNode* createFileListNode(char* fileName, double tf) {
  */
 FileList insertFileNode(FileList flst, char* fileName, double tf) {
     // 遍历each_file已经对word去重，所以放心insert
-    // if (findFileListNode(flst, fileName)) return;
-    // printf("insertFileNode,");
-
     if (!flst) return createFileListNode(fileName, tf);
     // printf("create a FileNode\n");
     FileList head = flst, prev;
