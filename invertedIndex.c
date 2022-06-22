@@ -36,8 +36,11 @@ void free_wfs(wf*);
 InvertedIndexBST insertInvertedIndexNode(InvertedIndexBST root, char* word, char* fileName, double tf);
 struct InvertedIndexNode* createInvertedIndexNode(char* wd, char* fileName, double tf);
 
+FileList insertFileNode(FileList flst, char* fileName, double tf);
+void printFileList(FileList head, char* filename);
+
 InvertedIndexBST generateInvertedIndex(char* collectionFilename) {
-	InvertedIndexBST invertedIndex;
+	InvertedIndexBST invertedIndex = NULL;
 	// scan file name from collectionFilename
 
 	/*
@@ -58,7 +61,7 @@ InvertedIndexBST generateInvertedIndex(char* collectionFilename) {
 		// There is no limit on the number of words in a file.
 		// for eachFile calculate tf(word, eachFile) for InvertedIndexNode
 		wf* head = NULL;
-		int cnt = 0;
+
 		while (fscanf(colFiles, "%s", fileName) != EOF) {
 			printf("%s\n", fileName);
 
@@ -68,8 +71,8 @@ InvertedIndexBST generateInvertedIndex(char* collectionFilename) {
 			// assume all files listed collectionFilename are valid
 			char wd[MAX_WD_LEN];
 			// char* str = wd;
+			int wd_num = 0;
 			while (fscanf(eachFile, "%s", wd) != EOF) {
-				int wd_num = 0;
 				// tf(t, d) = frequency of t in d / num of word in d
 
 				// printf("%s - ", wd);
@@ -77,26 +80,24 @@ InvertedIndexBST generateInvertedIndex(char* collectionFilename) {
 				char* word = normaliseWord(wd);
 				// If a word becomes empty after removing punctuation marks, then it should not count as a word
 				if (strlen(word) == 0) continue;
+				wd_num++;
 
 				// add word to wf list
 				wf* cur_wf = find_wf(head, word); // check whether the word exists
 				if (cur_wf) cur_wf->cnt++;
-				else {
+				else
 					head = add_wf(head, word);
-					cnt++;
-				}
+
+
 				// printf("%s\n", head->word);
 
 				// add word to invertedIndex
-
-				// for (wf* cur = head; cur; cur = cur->next)
-				// 	invertedIndex = insertInvertedIndexNode(invertedIndex, word, fileName, cur->cnt / wd_num);
-
-
 			}
-			print_wfs(head);
-
-
+			printf("%d\n", wd_num);
+			for (wf* cur = head; cur; cur = cur->next)
+				invertedIndex = insertInvertedIndexNode(invertedIndex, cur->word, fileName, (double) cur->cnt / wd_num);
+			// wd_num = 0;
+			// print_wfs(head);
 			free_wfs(head);
 			fclose(eachFile);
 		}
@@ -105,11 +106,108 @@ InvertedIndexBST generateInvertedIndex(char* collectionFilename) {
 	} else {
 		fprintf(stderr, "no such file %s\n", collectionFilename);
 	}
+	return invertedIndex;
+}
+
+/**
+ * Creates node which contains `wd` in fileName
+ */
+struct InvertedIndexNode* createInvertedIndexNode(char* wd, char* fileName, double tf) {
+	// printf("createInvertedIndexNode\n");
+	struct InvertedIndexNode* node = (struct InvertedIndexNode*) malloc(sizeof(struct InvertedIndexNode));
+
+	(*node) = (struct InvertedIndexNode){
+		.word = strdup(wd),
+		.fileList = insertFileNode(node->fileList, fileName, tf),
+		.left = NULL,
+		.right = NULL,
+	};
+	return node;
+}
+
+InvertedIndexBST insertInvertedIndexNode(InvertedIndexBST root, char* word, char* fileName, double tf) {
+	if (!root)
+		return createInvertedIndexNode(word, fileName, tf);
+	// printf("find word\n");
+	if (strcmp(word, root->word) < 0)
+		root->left = insertInvertedIndexNode(root->left, word, fileName, tf);
+	else if (strcmp(word, root->word) > 0)
+		root->right = insertInvertedIndexNode(root->right, word, fileName, tf);
+	else
+		root->fileList = insertFileNode(root->fileList, fileName, tf);
+
+	return root;
+}
+
+struct FileNode* createFileListNode(char* fileName, double tf) {
+	struct FileNode* node = malloc(sizeof(struct FileNode));
+	(*node) = (struct FileNode){
+		.filename = strdup(fileName),
+		.tf = tf,
+		.next = NULL };
+	return node;
+}
+
+/**
+ *
+ * 将FileNode插入InvertedIndexNode
+ */
+FileList insertFileNode(FileList flst, char* fileName, double tf) {
+	if (!flst) return createFileListNode(fileName, tf);
+	FileList head = flst, prev;
+
+	// each file list must be sorted alphabetically (ascending) by filename
+	while (flst && strcmp(fileName, flst->filename) > 0) {
+		prev = flst;
+		flst = flst->next;
+	}
+
+	struct FileNode* node = createFileListNode(fileName, tf);
+	if (flst == head) {
+		node->next = head;
+		return node;
+	}
+	node->next = flst;
+	prev->next = node;
+
+	return head;
+}
+
+struct FileNode* findFileListNode(FileList flst, char* fileName) {
+	while (flst) {
+		if (strcmp(flst->filename, fileName) == 0)
+			return flst;
+		else
+			flst = flst->next;
+	}
 	return NULL;
 }
 
 void printInvertedIndex(InvertedIndexBST tree, char* filename) {
+	if (!tree) return;
+	FILE* fp = fopen(filename, "a");
+	printInvertedIndex(tree->left, filename);
+	fprintf(fp, "%s ", tree->word);
+	FileList head = tree->fileList;
+	while (head) {
+		fprintf(fp, "%s (%f) ", head->filename, head->tf);
+		head = head->next;
+	}
+	fprintf(fp, "\n");
+	fclose(fp);
+	// printFileList(tree->fileList, filename);
+	printInvertedIndex(tree->right, filename);
+}
 
+
+void printFileList(FileList head, char* filename) {
+	FILE* fp = fopen(filename, "a");
+	while (head) {
+		fprintf(fp, "%s (%f) ", head->filename, head->tf);
+		head = head->next;
+	}
+	fprintf(fp, "\n");
+	fclose(fp);
 }
 
 void freeInvertedIndex(InvertedIndexBST tree) {
