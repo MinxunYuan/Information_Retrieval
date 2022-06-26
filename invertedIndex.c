@@ -46,6 +46,8 @@ InvertedIndexBST findInvertedIndexNodeByWord(InvertedIndexBST tree, char* search
 TfIdfList createTfIdfNode(char* filename, double tfidfSum, TfIdfList next);
 TfIdfList insertTfIdfNode(TfIdfList head, char* filename, double tfidf);
 
+double findTfIdfNodeByFilename(TfIdfList* head, char* filename);
+
 InvertedIndexBST generateInvertedIndex(char* collectionFilename) {
 	InvertedIndexBST invertedIndex = NULL;
 	// scan file name from collectionFilename
@@ -360,7 +362,65 @@ InvertedIndexBST findInvertedIndexNodeByWord(InvertedIndexBST tree, char* search
 }
 
 TfIdfList searchMany(InvertedIndexBST tree, char* searchWords[], int D) {
-	return NULL;
+	TfIdfList lst = NULL;
+	// scan words
+	for (int i = 0; searchWords[i]; i++) {
+		if (i == 0) {
+			lst = searchOne(tree, searchWords[i], D);
+		} else {
+			InvertedIndexBST bst = NULL;
+			bst = findInvertedIndexNodeByWord(tree, searchWords[i]);
+			if (!bst) continue; // searchWords[i] doesn't appears in bst
+
+			int docNum = countFileList(bst->fileList);
+			if (docNum == D)  continue; // lg1 = 0
+
+			double idf = log10((double) D / (double) docNum);
+			
+			// All files containing searchWords[i]
+			for (FileList head = bst->fileList; head; head = head->next) {
+				// check filename has already appears in the TfIdfList
+				double prevTfIdf = findTfIdfNodeByFilename(&lst, head->filename);
+				double curTfIdf = head->tf * idf;
+				// calculate tfidf based on the previous check
+				if (prevTfIdf != 0) {
+					curTfIdf += prevTfIdf;
+				}
+				// reconstruct TfIdfList
+				lst = insertTfIdfNode(lst, head->filename, curTfIdf);
+			}
+		}
+	}
+	return lst;
+}
+
+/**
+ * @brief
+ * Find whether fileName appears in TfIdfList
+ * and delete the existed TfIdfNode
+ * @return The tf-idf value of the existed TfIdfNode
+ */
+double findTfIdfNodeByFilename(TfIdfList* head, char* filename) {
+	TfIdfList cur = *head, prev = NULL;
+	while (cur) {
+		if (strcmp(cur->filename, filename) == 0) {
+			double tfidf = cur->tfIdfSum;
+			if (cur == (*head)) {
+				// delete head, modify list from callee
+				*head = (*head)->next;
+			} else {
+				// not head
+				prev->next = cur->next;
+			}
+			free(cur->filename);
+			free(cur);
+			return tfidf;
+		}
+		prev = cur;
+		cur = cur->next;
+	}
+	// filename doesn't appear in the given list
+	return 0.0;
 }
 
 void freeTfIdfList(TfIdfList list) {
