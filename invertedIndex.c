@@ -283,7 +283,7 @@ void print_wfs(wf* head) {
 
 void free_wfs(wf* head) {
 	if (head) {
-		freeList(head->next);
+		free_wfs(head->next);
 		free(head->word);
 		free(head);
 	}
@@ -301,31 +301,38 @@ TfIdfList searchOne(InvertedIndexBST tree, char* searchWord, int D) {
 
 	if (!bst) return NULL;
 	int docNum = countFileList(bst->fileList);
-
 	// log10(1) == 0
 	if (docNum != D) {
 		double idf = log10((double) D / (double) docNum);
 		// traverse fileList
-		printf("%.7f\n", idf);
-
-		for (FileList head = bst->fileList; head; head = head->next) {
+		for (FileList head = bst->fileList; head; head = head->next)
 			lst = insertTfIdfNode(lst, head->filename, head->tf * idf);
-
-		}
 	}
 	return lst;
 }
 
 
-
 TfIdfList insertTfIdfNode(TfIdfList head, char* filename, double tfidf) {
-	TfIdfList next = NULL;
-	if (head) next = head;
-	return createTfIdfNode(filename, tfidf, next);
+	// The list must be in descending order of tf-idf. 
+	// Files with the same tf-idf should be ordered alphabetically by filename in ascending order.
+	if (head == NULL) return createTfIdfNode(filename, tfidf, NULL);
+
+	if (head->tfIdfSum > tfidf)
+		head->next = insertTfIdfNode(head->next, filename, tfidf);
+	else if (head->tfIdfSum < tfidf)
+		return createTfIdfNode(filename, tfidf, head);
+	else {
+		if (strcmp(filename, head->filename) > 0)
+			head->next = insertTfIdfNode(head->next, filename, tfidf);
+		else
+			return createTfIdfNode(filename, tfidf, head);
+	}
+	return head;
 }
 
 TfIdfList createTfIdfNode(char* filename, double tfidfSum, TfIdfList next) {
 	TfIdfList node = malloc(sizeof(struct TfIdfNode));
+	memset(node, 0, sizeof(struct TfIdfNode));
 	(*node) = (struct TfIdfNode){
 		.filename = strdup(filename),
 		.tfIdfSum = tfidfSum,
@@ -357,6 +364,10 @@ TfIdfList searchMany(InvertedIndexBST tree, char* searchWords[], int D) {
 }
 
 void freeTfIdfList(TfIdfList list) {
-
+	if (list) {
+		freeTfIdfList(list->next);
+		free(list->filename);
+		free(list);
+	}
 }
 
