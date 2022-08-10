@@ -240,14 +240,14 @@ bool isPunc(char ch) {
  */
 char* normaliseWord(char* str) {
 	// converting all letters to lowercase
-	char* i = str;
-	char* j = str + strlen(str) - 1;
-	while (i <= j) *i++ = tolower(*i);
+	char* end = str + strlen(str) - 1;
+	for (int i = 0; str[i]; i++) {
+		str[i] = tolower(str[i]);
+	}
 
 	// remove tailing specified punctuation
-	while (isPunc(*j)) j--;
-	// j++;
-	*(++j) = 0;
+	while (isPunc(*end)) end--;
+	*(++end) = 0;
 	return str;
 }
 
