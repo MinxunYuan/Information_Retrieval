@@ -1,0 +1,6 @@
+.idea
+.vscode
+exmp*/*.out
+exmp*/testInvertedIndex.dSYM
+*.txt
+testInvertedIndex
